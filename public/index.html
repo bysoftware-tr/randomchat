@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RandomChat — Rastgele Görüntülü Sohbet</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #ffffff12;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --text: #f0f0f5;
+    --muted: #6b6b80;
+    --online: #22d3a0;
+    --radius: 16px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9999; opacity: .4;
+  }
+
+  /* ════════════════════════════════
+     SCREEN SYSTEM
+  ════════════════════════════════ */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ════════════════════════════════
+     WELCOME SCREEN
+  ════════════════════════════════ */
+  #screen-welcome {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    position: relative;
+  }
+
+  /* background glow blobs */
+  #screen-welcome::after {
+    content: '';
+    position: fixed;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, #6c63ff22 0%, transparent 70%);
+    top: -100px; left: -100px;
+    pointer-events: none;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #fff 40%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 1rem;
+    margin-bottom: 48px;
+    font-weight: 300;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 420px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 40px 80px #00000060;
+    animation: cardIn .5s cubic-bezier(.22,1,.36,1) both;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(30px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .card h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 28px;
+    color: var(--text);
+  }
+
+  .field { margin-bottom: 24px; }
+  .field label {
+    display: block;
+    font-size: .8rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  /* Gender toggle */
+  .gender-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .gender-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 10px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: .95rem;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .gender-btn:hover { border-color: #ffffff30; color: var(--text); }
+  .gender-btn.active.male  { border-color: var(--accent); background: #6c63ff18; color: #a49fff; }
+  .gender-btn.active.female{ border-color: var(--accent2); background: #ff658418; color: #ff9ab0; }
+
+  /* Country select */
+  .select-wrap { position: relative; }
+  .select-wrap select {
+    width: 100%;
+    background: #0d0d14;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: .95rem;
+    cursor: pointer;
+    appearance: none;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .select-wrap select:focus { border-color: var(--accent); }
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  /* Preference filter */
+  .pref-filter {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .pref-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 6px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: .82rem;
+    cursor: pointer;
+    transition: all .2s;
+    text-align: center;
+  }
+  .pref-btn:hover { border-color: #ffffff30; color: var(--text); }
+  .pref-btn.active { border-color: var(--online); background: #22d3a015; color: var(--online); }
+
+  /* Start button */
+  .btn-start {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 14px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-start::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #fff2 0%, transparent 60%);
+  }
+  .btn-start:hover { transform: translateY(-2px); box-shadow: 0 12px 40px #6c63ff50; }
+  .btn-start:active { transform: none; }
+  .btn-start:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .online-count {
+    text-align: center;
+    margin-top: 20px;
+    font-size: .82rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--online);
+    box-shadow: 0 0 8px var(--online);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: .4; }
+  }
+
+  /* ════════════════════════════════
+     WAITING SCREEN
+  ════════════════════════════════ */
+  #screen-waiting {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .spinner-ring {
+    width: 72px; height: 72px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .waiting-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+  .waiting-sub {
+    color: var(--muted);
+    font-size: .9rem;
+    text-align: center;
+    max-width: 260px;
+  }
+
+  .btn-cancel {
+    margin-top: 12px;
+    padding: 12px 32px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: .9rem;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-cancel:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ════════════════════════════════
+     CHAT SCREEN
+  ════════════════════════════════ */
+  #screen-chat {
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .chat-header .logo-sm {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    background: linear-gradient(135deg, #fff 40%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .partner-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .85rem;
+    color: var(--muted);
+  }
+  .partner-info .flag { font-size: 1.2rem; }
+
+  .header-actions { display: flex; gap: 8px; }
+
+  .btn-icon {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: .8rem;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .btn-icon:hover { border-color: #ffffff30; color: var(--text); }
+  .btn-icon.danger:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-icon.next:hover  { border-color: var(--accent); color: var(--accent); }
+
+  /* Video area */
+  .video-area {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    background: #000;
+    min-height: 0;
+    position: relative;
+  }
+
+  @media (max-width: 640px) {
+    .video-area { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  }
+
+  .video-wrap {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .video-wrap video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .video-label {
+    position: absolute;
+    bottom: 12px; left: 12px;
+    background: #00000080;
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: .75rem;
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .video-divider {
+    position: absolute;
+    left: 50%; top: 0;
+    width: 2px; height: 100%;
+    background: var(--bg);
+    transform: translateX(-50%);
+  }
+
+  /* Controls bar */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .ctrl-btn {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+  }
+  .ctrl-btn:hover { background: #ffffff10; border-color: #ffffff30; }
+  .ctrl-btn.off { background: #ffffff15; border-color: #ffffff20; color: var(--muted); }
+  .ctrl-btn.end {
+    width: auto; padding: 0 20px;
+    border-radius: 12px;
+    background: var(--accent2);
+    border-color: var(--accent2);
+    font-size: .85rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    color: #fff;
+    height: 46px;
+  }
+  .ctrl-btn.end:hover { opacity: .85; }
+
+  /* Chat panel */
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+    min-width: 280px;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 900px) { .chat-panel { display: none; } }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg {
+    max-width: 90%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: .85rem;
+    line-height: 1.4;
+    animation: msgIn .2s ease both;
+  }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } }
+
+  .msg.me {
+    align-self: flex-end;
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.them {
+    align-self: flex-start;
+    background: #1e1e2a;
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.system {
+    align-self: center;
+    background: transparent;
+    color: var(--muted);
+    font-size: .75rem;
+    font-style: italic;
+  }
+
+  .chat-input-wrap {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-input {
+    flex: 1;
+    background: #0d0d14;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: .85rem;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-input::placeholder { color: var(--muted); }
+
+  .btn-send {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    width: 38px;
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: opacity .2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-send:hover { opacity: .85; }
+
+  /* Main content area (video + chat side by side) */
+  .chat-main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .chat-videos {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* No camera placeholder */
+  .no-cam {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    background: #0d0d14;
+    color: var(--muted);
+    font-size: .85rem;
+  }
+  .no-cam .icon { font-size: 2rem; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 80px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1e1e2a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-size: .85rem;
+    color: var(--text);
+    opacity: 0;
+    pointer-events: none;
+    transition: all .3s;
+    z-index: 1000;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- ════ SCREEN 1: WELCOME ════ -->
+<div id="screen-welcome" class="screen active">
+  <div class="logo">RandomChat</div>
+  <p class="tagline">Dünyayla bağlan — anlık, rastgele, gerçek.</p>
+
+  <div class="card">
+    <h2>Sohbete başla</h2>
+
+    <!-- Cinsiyet -->
+    <div class="field">
+      <label>Ben bir</label>
+      <div class="gender-toggle">
+        <button class="gender-btn male" data-gender="male" onclick="selectGender('male', this)">
+          ♂ Erkeğim
+        </button>
+        <button class="gender-btn female" data-gender="female" onclick="selectGender('female', this)">
+          ♀ Kadınım
+        </button>
+      </div>
+    </div>
+
+    <!-- Konuşmak istediğim -->
+    <div class="field">
+      <label>Konuşmak istiyorum</label>
+      <div class="pref-toggle pref-filter">
+        <button class="pref-btn" data-pref="opposite" onclick="selectPref('opposite', this)">Karşı cinsiyet</button>
+        <button class="pref-btn" data-pref="any"      onclick="selectPref('any', this)">Herkesle</button>
+        <button class="pref-btn" data-pref="same"     onclick="selectPref('same', this)">Aynı cinsiyet</button>
+      </div>
+    </div>
+
+    <!-- Ülke -->
+    <div class="field">
+      <label>Ülke tercihi</label>
+      <div class="select-wrap">
+        <select id="country-select">
+          <option value="any">🌍 Tüm ülkeler (rastgele)</option>
+          <option value="TR">🇹🇷 Türkiye</option>
+          <option value="US">🇺🇸 Amerika</option>
+          <option value="DE">🇩🇪 Almanya</option>
+          <option value="GB">🇬🇧 İngiltere</option>
+          <option value="FR">🇫🇷 Fransa</option>
+          <option value="IT">🇮🇹 İtalya</option>
+          <option value="ES">🇪🇸 İspanya</option>
+          <option value="RU">🇷🇺 Rusya</option>
+          <option value="BR">🇧🇷 Brezilya</option>
+          <option value="JP">🇯🇵 Japonya</option>
+          <option value="KR">🇰🇷 Güney Kore</option>
+          <option value="IN">🇮🇳 Hindistan</option>
+          <option value="SA">🇸🇦 Suudi Arabistan</option>
+          <option value="EG">🇪🇬 Mısır</option>
+          <option value="NG">🇳🇬 Nijerya</option>
+          <option value="MX">🇲🇽 Meksika</option>
+          <option value="CA">🇨🇦 Kanada</option>
+          <option value="AU">🇦🇺 Avustralya</option>
+          <option value="NL">🇳🇱 Hollanda</option>
+          <option value="PL">🇵🇱 Polonya</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-start" id="btn-start" onclick="startSearch()" disabled>
+      Sohbet Başlat →
+    </button>
+  </div>
+
+  <div class="online-count">
+    <div class="dot"></div>
+    <span id="online-num">—</span> kişi çevrimiçi
+  </div>
+</div>
+
+<!-- ════ SCREEN 2: WAITING ════ -->
+<div id="screen-waiting" class="screen">
+  <div class="spinner-ring"></div>
+  <div class="waiting-text">Eşleşme aranıyor...</div>
+  <div class="waiting-sub" id="waiting-sub">Kriterlerine uyan biri bulunana kadar bekle.</div>
+  <button class="btn-cancel" onclick="cancelSearch()">İptal Et</button>
+</div>
+
+<!-- ════ SCREEN 3: CHAT ════ -->
+<div id="screen-chat" class="screen">
+  <div class="chat-header">
+    <span class="logo-sm">RC</span>
+    <div class="partner-info">
+      <span class="flag" id="partner-flag">🌍</span>
+      <span id="partner-label">Bağlanıyor...</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon next" onclick="nextPerson()">⏭ Sonraki</button>
+      <button class="btn-icon danger" onclick="endChat()">✕ Bitir</button>
+    </div>
+  </div>
+
+  <div class="chat-main">
+    <div class="chat-videos">
+      <div class="video-area">
+        <!-- Karşı taraf -->
+        <div class="video-wrap">
+          <video id="remote-video" autoplay playsinline></video>
+          <div id="remote-placeholder" class="no-cam">
+            <span class="icon">📹</span>
+            <span>Bağlantı bekleniyor...</span>
+          </div>
+          <div class="video-label" id="partner-video-label">Karşı taraf</div>
+        </div>
+        <!-- Sen -->
+        <div class="video-wrap">
+          <video id="local-video" autoplay playsinline muted></video>
+          <div id="local-placeholder" class="no-cam">
+            <span class="icon">🎥</span>
+            <span>Kamerana izin ver</span>
+          </div>
+          <div class="video-label">Sen</div>
+        </div>
+        <div class="video-divider"></div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button class="ctrl-btn" id="btn-cam"  title="Kamera" onclick="toggleCam()">📷</button>
+        <button class="ctrl-btn" id="btn-mic"  title="Mikrofon" onclick="toggleMic()">🎙️</button>
+        <button class="ctrl-btn end" onclick="nextPerson()">⏭ Sonraki kişi</button>
+      </div>
+    </div>
+
+    <!-- Chat panel -->
+    <div class="chat-panel">
+      <div class="chat-messages" id="chat-messages">
+        <div class="msg system">Mesaj göndermek için yaz ve Enter'a bas.</div>
+      </div>
+      <div class="chat-input-wrap">
+        <input
+          class="chat-input"
+          id="chat-input"
+          type="text"
+          placeholder="Mesaj yaz..."
+          maxlength="300"
+          onkeydown="if(event.key==='Enter') sendMessage()"
+        />
+        <button class="btn-send" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Socket.io (sunucudan gelecek) -->
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let myGender   = null;
+let myPref     = 'opposite';
+let myCountry  = 'any';
+
+let socket        = null;
+let localStream   = null;
+let peerConn      = null;
+let isCamOn       = true;
+let isMicOn       = true;
+let partnerId     = null;
+let partnerData   = {};
+
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+
+const COUNTRY_MAP = {
+  any:'🌍 Rastgele', TR:'🇹🇷 Türkiye', US:'🇺🇸 ABD', DE:'🇩🇪 Almanya',
+  GB:'🇬🇧 İngiltere', FR:'🇫🇷 Fransa', IT:'🇮🇹 İtalya', ES:'🇪🇸 İspanya',
+  RU:'🇷🇺 Rusya', BR:'🇧🇷 Brezilya', JP:'🇯🇵 Japonya', KR:'🇰🇷 Kore',
+  IN:'🇮🇳 Hindistan', SA:'🇸🇦 S.Arabistan', EG:'🇪🇬 Mısır', NG:'🇳🇬 Nijerya',
+  MX:'🇲🇽 Meksika', CA:'🇨🇦 Kanada', AU:'🇦🇺 Avustralya', NL:'🇳🇱 Hollanda', PL:'🇵🇱 Polonya'
+};
+
+const FLAGS = {
+  TR:'🇹🇷',US:'🇺🇸',DE:'🇩🇪',GB:'🇬🇧',FR:'🇫🇷',IT:'🇮🇹',ES:'🇪🇸',
+  RU:'🇷🇺',BR:'🇧🇷',JP:'🇯🇵',KR:'🇰🇷',IN:'🇮🇳',SA:'🇸🇦',EG:'🇪🇬',
+  NG:'🇳🇬',MX:'🇲🇽',CA:'🇨🇦',AU:'🇦🇺',NL:'🇳🇱',PL:'🇵🇱',any:'🌍'
+};
+
+// ═══════════════════════════════════════════════
+//  WELCOME UI
+// ═══════════════════════════════════════════════
+function selectGender(g, el) {
+  myGender = g;
+  document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  checkReady();
+}
+
+function selectPref(p, el) {
+  myPref = p;
+  document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function checkReady() {
+  document.getElementById('btn-start').disabled = !myGender;
+}
+
+// ═══════════════════════════════════════════════
+//  SOCKET + SEARCH
+// ═══════════════════════════════════════════════
+async function startSearch() {
+  myCountry = document.getElementById('country-select').value;
+
+  // Kamera izni al
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch(e) {
+    toast('Kamera/mikrofon izni gerekli!');
+    return;
+  }
+
+  showScreen('waiting');
+
+  // Sunucuya bağlan
+  if (!socket) initSocket();
+
+  socket.emit('search', {
+    gender:  myGender,
+    pref:    myPref,
+    country: myCountry
+  });
+
+  const sub = myCountry === 'any'
+    ? 'Herhangi bir ülkeden eşleşme aranıyor.'
+    : `${COUNTRY_MAP[myCountry] || myCountry} için eşleşme aranıyor.`;
+  document.getElementById('waiting-sub').textContent = sub;
+}
+
+function cancelSearch() {
+  if (socket) socket.emit('cancel');
+  cleanup();
+  showScreen('welcome');
+}
+
+// ═══════════════════════════════════════════════
+//  SOCKET EVENTS
+// ═══════════════════════════════════════════════
+function initSocket() {
+  socket = io();
+
+  socket.on('onlineCount', n => {
+    document.getElementById('online-num').textContent = n;
+  });
+
+  socket.on('matched', async (data) => {
+    partnerId   = data.partnerId;
+    partnerData = data;
+    showChatScreen(data);
+
+    // WebRTC — initiator yapar offer
+    await createPeerConnection();
+    if (data.initiator) {
+      const offer = await peerConn.createOffer();
+      await peerConn.setLocalDescription(offer);
+      socket.emit('signal', { to: partnerId, signal: { type: 'offer', sdp: offer } });
+    }
+  });
+
+  socket.on('signal', async ({ from, signal }) => {
+    if (!peerConn) await createPeerConnection();
+
+    if (signal.type === 'offer') {
+      await peerConn.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+      const answer = await peerConn.createAnswer();
+      await peerConn.setLocalDescription(answer);
+      socket.emit('signal', { to: from, signal: { type: 'answer', sdp: answer } });
+    } else if (signal.type === 'answer') {
+      await peerConn.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+    } else if (signal.type === 'ice') {
+      await peerConn.addIceCandidate(new RTCIceCandidate(signal.candidate));
+    }
+  });
+
+  socket.on('partnerLeft', () => {
+    addSystemMsg('Karşı taraf bağlantıyı kesti.');
+    cleanup(false);
+    toast('Eşleşme bitti, yeniden aranıyor...');
+    setTimeout(() => {
+      if (socket) socket.emit('search', { gender: myGender, pref: myPref, country: myCountry });
+      showScreen('waiting');
+    }, 1500);
+  });
+
+  socket.on('chat', ({ text }) => {
+    addMsg(text, 'them');
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  WebRTC
+// ═══════════════════════════════════════════════
+async function createPeerConnection() {
+  peerConn = new RTCPeerConnection(ICE_SERVERS);
+
+  localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
+
+  peerConn.ontrack = (e) => {
+    const rv = document.getElementById('remote-video');
+    rv.srcObject = e.streams[0];
+    document.getElementById('remote-placeholder').style.display = 'none';
+    rv.style.display = 'block';
+  };
+
+  peerConn.onicecandidate = (e) => {
+    if (e.candidate && partnerId) {
+      socket.emit('signal', { to: partnerId, signal: { type: 'ice', candidate: e.candidate } });
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════
+//  CHAT SCREEN SETUP
+// ═══════════════════════════════════════════════
+function showChatScreen(data) {
+  showScreen('chat');
+
+  // Local video
+  const lv = document.getElementById('local-video');
+  lv.srcObject = localStream;
+  document.getElementById('local-placeholder').style.display = 'none';
+  lv.style.display = 'block';
+
+  // Remote placeholder reset
+  const rv = document.getElementById('remote-video');
+  rv.srcObject = null;
+  rv.style.display = 'none';
+  document.getElementById('remote-placeholder').style.display = 'flex';
+
+  // Partner info
+  const flag = FLAGS[data.country] || '🌍';
+  document.getElementById('partner-flag').textContent = flag;
+  const genderTxt = data.gender === 'male' ? '♂' : '♀';
+  document.getElementById('partner-label').textContent =
+    `${genderTxt} ${COUNTRY_MAP[data.country] || data.country}`;
+  document.getElementById('partner-video-label').textContent =
+    `${flag} ${genderTxt}`;
+
+  // Clear messages
+  document.getElementById('chat-messages').innerHTML =
+    '<div class="msg system">Bağlandın! Merhaba de 👋</div>';
+}
+
+// ═══════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════
+function toggleCam() {
+  isCamOn = !isCamOn;
+  localStream.getVideoTracks().forEach(t => t.enabled = isCamOn);
+  const btn = document.getElementById('btn-cam');
+  btn.textContent = isCamOn ? '📷' : '🚫';
+  btn.classList.toggle('off', !isCamOn);
+}
+
+function toggleMic() {
+  isMicOn = !isMicOn;
+  localStream.getAudioTracks().forEach(t => t.enabled = isMicOn);
+  const btn = document.getElementById('btn-mic');
+  btn.textContent = isMicOn ? '🎙️' : '🔇';
+  btn.classList.toggle('off', !isMicOn);
+}
+
+function nextPerson() {
+  if (socket && partnerId) {
+    socket.emit('next');
+  }
+  cleanup(false);
+  showScreen('waiting');
+  if (socket) {
+    socket.emit('search', { gender: myGender, pref: myPref, country: myCountry });
+  }
+}
+
+function endChat() {
+  if (socket) socket.emit('leave');
+  cleanup();
+  showScreen('welcome');
+}
+
+// ═══════════════════════════════════════════════
+//  MESSAGING
+// ═══════════════════════════════════════════════
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text || !socket || !partnerId) return;
+  socket.emit('chat', { to: partnerId, text });
+  addMsg(text, 'me');
+  input.value = '';
+}
+
+function addMsg(text, who) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `msg ${who}`;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function addSystemMsg(text) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg system';
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function cleanup(stopStream = true) {
+  if (peerConn) { peerConn.close(); peerConn = null; }
+  partnerId = null;
+  if (stopStream && localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  const rv = document.getElementById('remote-video');
+  if (rv) rv.srcObject = null;
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+}
+
+function toast(msg, dur = 2800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ═══════════════════════════════════════════════
+//  INIT — simüle online sayısı (sunucu bağlandığında gerçek gelir)
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Sunucu yokken demo sayı göster
+  document.getElementById('online-num').textContent = '...';
+
+  // Pref default: karşı cinsiyet
+  const defaultPref = document.querySelector('[data-pref="opposite"]');
+  if (defaultPref) selectPref('opposite', defaultPref);
+});
+</script>
+</body>
+</html>
