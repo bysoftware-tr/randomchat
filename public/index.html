@@ -13,17 +13,38 @@
   <!-- ── SEO ── -->
   <title>RandomChat — Rastgele Görüntülü Sohbet</title>
   <meta name="description" content="RandomChat ile dünya genelinde rastgele insanlarla anında görüntülü sohbet et. Ülke ve cinsiyet filtresiyle dilediğin kişiyle bağlan. Ücretsiz, kayıtsız." />
-  <meta name="keywords" content="rastgele görüntülü sohbet, random video chat, omegle türkiye, yabancılarla sohbet" />
-  <meta name="author" content="bysoftware-tr" />
+  <meta name="keywords" content="rastgele görüntülü sohbet, random video chat, omegle türkiye, yabancılarla sohbet, bedava kameralı sohbet" />
+  <meta name="author" content="bysoftwaretr" />
   <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://randomchat.is-a.dev" />
+  <link rel="canonical" href="https://randomchat-r9uh.onrender.com/" />
 
   <!-- ── Open Graph ── -->
   <meta property="og:title" content="RandomChat — Rastgele Görüntülü Sohbet" />
   <meta property="og:description" content="Dünya genelinde rastgele insanlarla anında görüntülü sohbet et. Ücretsiz ve kayıtsız." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://randomchat.is-a.dev" />
+  <meta property="og:url" content="https://randomchat-r9uh.onrender.com/" />
+  <meta property="og:site_name" content="RandomChat" />
   <meta property="og:locale" content="tr_TR" />
+
+  <!-- ── Twitter Card ── -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="RandomChat — Rastgele Görüntülü Sohbet" />
+  <meta name="twitter:description" content="Dünya genelinde rastgele insanlarla anında görüntülü sohbet et. Ücretsiz ve kayıtsız." />
+
+  <!-- ── Structured Data (JSON-LD) ── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "RandomChat",
+    "url": "https://randomchat-r9uh.onrender.com/",
+    "description": "RandomChat ile dünya genelinde rastgele insanlarla anında görüntülü sohbet et. Ücretsiz ve kayıtsız.",
+    "author": {
+      "@type": "Person",
+      "name": "bysoftwaretr"
+    }
+  }
+  </script>
 
   <!-- ── PWA / Mobile ── -->
   <meta name="theme-color" content="#6c63ff" />
@@ -682,8 +703,8 @@
 
     <footer class="welcome__footer" role="contentinfo">
       Designed &amp; Developed by
-      <a href="https://github.com/bysoftware-tr" target="_blank" rel="noopener noreferrer">bysoftware-tr</a><br>
-      © 2025 RandomChat &nbsp;·&nbsp; Tüm hakları saklıdır.
+      <a href="https://github.com/bysoftware-tr" target="_blank" rel="noopener noreferrer">bysoftwaretr</a><br>
+      © 2026 RandomChat &nbsp;·&nbsp; Tüm hakları saklıdır.
     </footer>
 
   </main>
@@ -1323,57 +1344,3 @@
 
 </body>
 </html>
-
-<!--
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- SECURITY IMPROVEMENTS SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. XSS ELİMİNASYONU
-   - Tüm inline onclick/onload/onfoo kaldırıldı
-   - DOM yazımları textContent / createElement kullanır; innerHTML YOK
-   - Kullanıcı metni sanitizeText() ile kesilir/temizlenir
-
-2. WHITELIST DOĞRULAMA
-   - gender, pref, country sadece ALLOWED_ listesindeki değerleri kabul eder
-   - Sunucudan gelen eşleşme verisi de doğrulanır
-
-3. CLICKJACKING
-   - X-Frame-Options: DENY meta header
-   - Üretim ortamında aynı header sunucu tarafında da gönderilmeli
-
-4. TAM ERIŞIM GÜVENLİĞİ
-   - rel="noopener noreferrer" tüm dış linklerde mevcut
-   - Permissions-Policy kamera/mikrofonu sadece self'e izin verir
-
-5. INLINE KOD YOK
-   - JS ve CSS tamamen ayrılmış; inline event handler sıfır
-
-6. INPUT SINIRI
-   - Mesajlar 300 karakter ile sınırlandırılmış, trim edilmiş
-   - Textarea auto-resize sadece CSS/JS ile, DOM injection yok
-
-7. KAYNAK KORUMALARI
-   - Hiçbir token, API key veya gizli bilgi yok
-   - Debug/test kodu yok; production-ready
-
-8. ERİŞİLEBİLİRLİK & GÜVENLİK
-   - aria-* attribute'lar tüm interaktif elemanlarda
-   - role="dialog" + aria-modal modal için
-   - :focus-visible ile klavye navigasyonu destekleniyor
-
-9. TARAYICI UYUMLULUGU
-   - safe-area-inset (iPhone çentik/home bar) destekleniyor
-   - 100dvh ile Android/iOS tam ekran uyumu
-   - prefers-reduced-motion animasyonları devre dışı bırakıyor
-   - -webkit-text-size-adjust mobil zoom sorununu önlüyor
-
-10. YENİ ÖZELLİKLER (güvenli şekilde eklendi)
-    - Süre sayacı (duration badge)
-    - Şikayet modal (report)
-    - Emoji hızlı gönder bar
-    - Sayfa gizlenince mikrofon otomatik sessizleşir
-    - Bağlantı hatası bildirimi
-    - socket.io websocket-only (polling XSS riski azaltıldı)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
--->
