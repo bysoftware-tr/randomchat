@@ -353,7 +353,11 @@
   }
 
   @media (max-width: 640px) {
-    .video-area { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    .video-area {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+    .video-divider { display: none; }
   }
 
   .video-wrap {
@@ -436,7 +440,22 @@
     flex-shrink: 0;
   }
 
-  @media (max-width: 900px) { .chat-panel { display: none; } }
+  @media (max-width: 900px) {
+    .chat-panel {
+      display: flex;
+      width: 100%;
+      min-width: 0;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      max-height: 200px;
+    }
+    .chat-main {
+      flex-direction: column;
+    }
+    #screen-chat {
+      height: 100dvh;
+    }
+  }
 
   .chat-messages {
     flex: 1;
