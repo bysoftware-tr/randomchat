@@ -904,7 +904,23 @@
   const ICE_CONFIG = Object.freeze({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun.relay.metered.ca:80' },
+      {
+        urls: 'turn:global.relay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ]
   });
 
@@ -1093,9 +1109,19 @@
   });
 
   /* ── Next / End ─────────────────────────────── */
-  function doNext() {
+  async function doNext() {
     socket?.emit('next');
     cleanup(false);
+    // Ensure stream is alive for the next round
+    if (!localStream || localStream.getTracks().every(t => t.readyState === 'ended')) {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch {
+        showNotif('Kamera/mikrofon izni gerekli!', 'error');
+        showScreen('welcome');
+        return;
+      }
+    }
     showScreen('waiting');
     socket?.emit('search', { gender: myGender, pref: myPref, country: myCountry });
   }
@@ -1188,7 +1214,12 @@
 
   /* ── Socket.io ──────────────────────────────── */
   function initSocket() {
-    socket = io({ transports: ['websocket'] });
+    // Prevent double-init
+    if (socket) {
+      if (!socket.connected) socket.connect();
+      return;
+    }
+    socket = io({ transports: ['websocket'], reconnectionAttempts: 5 });
 
     socket.on('onlineCount', n => {
       el.onlineNum.textContent = String(parseInt(n, 10) || 0);
@@ -1197,6 +1228,13 @@
     socket.on('matched', async data => {
       // Validate incoming data
       if (!data?.partnerId) return;
+      // Guard: must have a valid local stream before proceeding
+      if (!localStream || localStream.getTracks().every(t => t.readyState === 'ended')) {
+        console.error('matched received but localStream is not ready');
+        showNotif('Kamera akışı hazır değil, lütfen tekrar deneyin.', 'error');
+        showScreen('welcome');
+        return;
+      }
       partnerId = data.partnerId;
 
       const country = ALLOWED_COUNTRIES.includes(data.country) ? data.country : 'any';
@@ -1214,6 +1252,8 @@
 
     socket.on('signal', async ({ from, signal }) => {
       if (!signal) return;
+      // Guard: localStream must be ready before creating peer connection
+      if (!localStream) { console.warn('signal received but localStream not ready, ignoring'); return; }
       if (!peerConn) await createPeerConnection();
       try {
         if (signal.type === 'offer') {
@@ -1226,7 +1266,7 @@
         } else if (signal.type === 'ice' && signal.candidate) {
           await peerConn.addIceCandidate(new RTCIceCandidate(signal.candidate));
         }
-      } catch { /* ignore stale signals */ }
+      } catch (err) { console.warn('signal handling error (ignored):', err); }
     });
 
     socket.on('partnerLeft', () => {
@@ -1234,7 +1274,17 @@
       cleanup(false);
       stopDuration();
       showNotif('Yeniden aranıyor...', '', 2000);
-      setTimeout(() => {
+      setTimeout(async () => {
+        // Ensure localStream is still alive before searching again
+        if (!localStream || localStream.getTracks().every(t => t.readyState === 'ended')) {
+          try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          } catch {
+            showNotif('Kamera/mikrofon izni gerekli!', 'error');
+            showScreen('welcome');
+            return;
+          }
+        }
         showScreen('waiting');
         socket?.emit('search', { gender: myGender, pref: myPref, country: myCountry });
       }, 1200);
@@ -1248,10 +1298,23 @@
     socket.on('connect_error', () => {
       showNotif('Sunucuya bağlanılamadı.', 'error');
     });
+
+    socket.on('disconnect', (reason) => {
+      if (reason === 'io server disconnect') {
+        // Server intentionally disconnected, don't auto-reconnect to wrong state
+        showNotif('Sunucu bağlantısı kesildi.', 'error');
+        cleanup(true);
+        showScreen('welcome');
+      }
+    });
   }
 
   /* ── WebRTC ─────────────────────────────────── */
   async function createPeerConnection() {
+    if (!localStream) {
+      console.error('createPeerConnection called without localStream');
+      return;
+    }
     peerConn = new RTCPeerConnection(ICE_CONFIG);
     localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
 
@@ -1271,8 +1334,15 @@
 
     peerConn.onconnectionstatechange = () => {
       if (!peerConn) return;
-      if (peerConn.connectionState === 'failed') {
-        showNotif('Bağlantı kesildi.', 'error');
+      const state = peerConn.connectionState;
+      if (state === 'failed') {
+        showNotif('Bağlantı kurulamadı, yeniden deneniyor...', 'error');
+        // Try ICE restart
+        if (peerConn && socket && partnerId) {
+          peerConn.restartIce?.();
+        }
+      } else if (state === 'disconnected') {
+        showNotif('Bağlantı kesildi...', 'error', 3000);
       }
     };
   }
